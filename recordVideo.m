@@ -22,7 +22,7 @@ function varargout = recordVideo(varargin)
 
 % Edit the above text to modify the response to help recordVideo
 
-% Last Modified by GUIDE v2.5 09-Apr-2017 20:52:42
+% Last Modified by GUIDE v2.5 02-May-2017 11:49:12
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -286,7 +286,7 @@ function RekamGait_Callback(hObject, eventdata, handles)
     global vobj;
     global v;
     %v = VideoWriter(['newfile_', timenow,'.avi']);
-    v = VideoWriter(['C:/Users/David/Documents/MATLAB/Video Record/video/GaitVideo.avi']);
+    v = VideoWriter(['C:/Users/David/Documents/MATLAB/Video Record/video/GaitVideo'],['MPEG-4']);
     v.Quality = 50;
     v.FrameRate = 30;
     vobj.DiskLogger = v;
@@ -303,9 +303,9 @@ function RekamGait_Callback(hObject, eventdata, handles)
     %uiwait(f)
 
 
-% --- Executes on button press in ekstrakBg.
-function ekstrakBg_Callback(hObject, eventdata, handles)
-% hObject    handle to ekstrakBg (see GCBO)
+% --- Executes on button press in preproses.
+function preproses_Callback(hObject, eventdata, handles)
+% hObject    handle to preproses (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 global k;
@@ -317,7 +317,7 @@ global frames;
 global Background;
 
 %fileVid = ('GaitVideo.avi');
-vid = VideoReader('C:/Users/David/Documents/MATLAB/Video Record/video/GaitVideo.avi');
+vid = VideoReader('C:/Users/David/Documents/MATLAB/Video Record/video/Sequence_01.mp4');
 vidWidth = vid.Width;
 vidHeight = vid.Height;
 
@@ -400,6 +400,223 @@ function ekstraksiFitur_Callback(hObject, eventdata, handles)
 % hObject    handle to ekstraksiFitur (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+global namaFile;
+nama_File=strcat('Datahasil.txt')
+fout=fopen(nama_File,'w');
+%fprintf(fout,'%11s %11s %11s %11s %11s %11s %11s %11s\r\n','| N o m o r | ', '|Jarak Kaki |',' Tinggi Kaki |',' Tinggi Lutut |',' Jarak Lutut |')
+%fprintf(fout,'\r\n');
+for i=1:32     
+     namaFile=strcat('image/skeleton/skeleton_',num2str(i),'.jpg');
+    %global skeleton;
+     %tmptSkeleton=fullfile(nama_path,namaFile);
+     skeleton=imread(namaFile);
+     %global skeleton;
+    skeleton=thresholding2(skeleton);
+    [baris kolom]=size(skeleton);
+% tinggiSetengah=round(baris/2);
+% Setengah=imcrop(skeleton,[0 tinggiSetengah kolom tinggiSetengah]);
+%[titikAwalX titikAwalY panjangX panjangY] titik awal Y dimulai dari atas citra trs ke bawah
+    yi=ceil(baris/2); %membagi nilai baris menjadi 2 bagian
+    yii=ceil(yi/2);
+    xi=ceil(kolom/2); %membagi nilai kolom menjadi 2 bagian
+%-------------------------------------------------------------------------%
+%               ujung kaki depan sampai tumit kaki belakang               %
+%-------------------------------------------------------------------------%
+%mencari selisih kaki depan dengan kaki belakang%
+ awalY=yi+yii;
+k=1;
+for i=awalY:baris
+    for j=1:kolom
+        if (skeleton(i,j)==0)
+            klm(k)=j;
+            k=k+1;
+        end
+    end
+end
+
+% jarak  %
+kaki_blkng=max(klm);
+kaki_dpn=min(klm);
+jarakPertama=kaki_blkng-kaki_dpn;
+if (jarakPertama < 0)
+    jarakPertama = jarakPertama * -1;
+end
+global JarakKaki;
+JarakKaki(i)=((jarakPertama/100)*2.54)*14
+%set(handles.jarakKaki,'String',num2str(JarakKaki,3));
+%----------------------------------------------------%
+%---tinggi badan---%
+awalT=yi*2;
+t = 1; 
+for nT=1:baris
+    for oT=1:kolom
+        if (skeleton(nT,oT)==0)
+            klm(t)=nT;
+            t=t+1;
+        end
+    end
+end
+
+% jarak  %
+atas=max(klm);
+bawah=min(klm);
+tinggi=atas+bawah;
+if (tinggi < 0)
+    tinggi = tinggi * -1;
+end
+global tinggibadan;
+tinggibadan(i)=((tinggi/100)*2.54)*14
+
+%-------------------------------------------------------------------------%
+%Selisih Tinggi kaki depan dengan tumit Kaki blkng%
+%mencari baris kaki depan dan kaki belakang
+for nD=awalY:baris
+	for oD=1:kolom
+        if (skeleton(nD,oD)==0)
+            if (oD==kaki_dpn)
+                brsKakiDepan=nD;
+            else
+                if (oD==kaki_blkng)
+                    brsKakiBlkng=nD;
+                end
+            end
+        end
+	end
+end  
+  
+global TinggiKaki;
+SelisihTinggiKaki=brsKakiDepan-brsKakiBlkng;
+if (SelisihTinggiKaki < 0)
+	SelisihTinggiKaki = SelisihTinggiKaki * -1;
+end
+
+TinggiKaki(i)=((SelisihTinggiKaki/100)*2.54)*14;
+%set(handles.tinggiKaki,'String',num2str(TinggiKaki,3));
+%-------------------------------------------------------------------------%
+ 
+%-------------------------------------------------------------------------%
+%               Lutut Kaki Depan dengan Lutut Kaki Belakang               %
+%-------------------------------------------------------------------------%
+%        selisih tinggi lutut       %
+%mencari baris dari lutut depan
+a=1;
+for BL1 = yi:brsKakiDepan %baris lutut
+	for KL1 = 1:kolom
+        if (skeleton(BL1,KL1)==0)
+            BLD(a)=BL1;
+            a=a+1;
+        end
+    end
+end
+ 
+brsLututDpn=median(BLD); %baris Lutut kaki depan
+
+%mencari baris dari lutut belakang
+b=1;
+
+for BL2 = yi:brsKakiBlkng
+    for KL2 = 1:kolom
+        if (skeleton(BL2,KL2)==0)
+            BLB(b)=BL2;
+            b=b+1;
+        end
+    end
+end
+ 
+brsLututBlkng=median(BLB);
+
+global TinggiLutut;
+SelisihLutut=brsLututDpn-brsLututBlkng;
+if (SelisihLutut < 0)
+    SelisihLutut = SelisihLutut * -1;
+end
+
+TinggiLutut(i) = ((SelisihLutut / 100)*2.54)*14;
+%set(handles.tinggiLutut,'String',num2str(TinggiLutut,3));
+%--------------------------------------------------------%
+
+%Jarak Antara Lutut Depan dan Lutut Belakang%
+%mencari kolom lutut Depan%
+c=1;
+for BL3 = yi:brsLututDpn %baris lutut
+    for KL3 = 1: kolom
+        if (skeleton(BL3,KL3)==0)
+            KLD(c)=KL3;
+            c=c+1;
+        end
+    end
+end
+KlmLututDpn=min(KLD);
+ 
+%mencari kolom lutut belakang
+d=1;
+for BL4 = yi:brsLututBlkng
+    for KL4 = 1:kolom
+        if (skeleton(BL4,KL4)==0)
+            KLB(d)=KL4;
+            d=d+1;
+        end
+	end
+end
+
+KlmLututBlkng=max(KLB);
+ 
+global JarakLutut;
+JarakKedua=KlmLututDpn-KlmLututBlkng;
+if (JarakKedua<0)
+    JarakKedua=JarakKedua*-1;
+end
+JarakLutut(i)=((JarakKedua/100)*2.54)*14;
+%set(handles.jarakLutut,'String',num2str(JarakLutut,3));
+%-------------------------------------------------------------------------%
+%simpan ke file 
+
+
+%global sdtKakiBlkng;
+%global sdtLututBlkng;
+%global sdtKakiDpn;
+%global sdtLututDpn;
+
+%fprintf(fout,'-----------------------------------------------------------------------------     Ciri Gerak Jalan Manusia    --------------------------------------------------------------------\n');
+%fprintf(fout,'%100s\n',nama_File,'\r\n');
+
+%' Sudut Lutut Kaki Depan |', ' Sudut Pergelangan Kaki Depan |', ' Sudut Lutut Kaki Belakang |', ' Sudut Pergelangan Kaki Belakang');
+fprintf(fout,'%8.2f %12.2f %14.2f %16.2f %20.2f %25.2f %30.2f %35.2f %30.2f %35.2f\r\n',JarakKaki(i),TinggiKaki(i),TinggiLutut(i),JarakLutut(i), tinggibadan(i));
+fprintf(fout,'\r\n');
+%sdtLututDpn, sdtKakiDpn, sdtLututBlkng, sdtKakiBlkng);
+end 
+fclose(fout);
+%warndlg('Pembentukan Fitur Selesai');
+ %---------------------------------Buata tabel hasil---------
+ 
+   % Load some tabular data (traffic counts from somewhere)
+count = load('Datahasil.txt');
+tablesize = size(count);    % This demo data is 24-by-3
+% Define parameters for a uitable (col headers are fictional)
+colnames = {'Jarak Kaki ',' Tinggi Kaki ',' Tinggi Lutut ',' Jarak Lutut ',' Tinggi Badan'};
+% All column contain numeric data (integers, actually)
+colfmt = {'numeric', 'numeric', 'numeric', 'numeric', 'numeric'};
+% Disallow editing values (but this can be changed)
+coledit = [false false false false];
+% Set columns all the same width (must be in pixels)
+colwdt = {4 4 4 4};
+% Create a uitable on the left side of the figure
+htable = uitable('Units', 'normalized',...
+                 'Position', [0.42 0.009 0.40 0.28],...
+                 'Data',  count,... 
+                 'ColumnName', colnames,...
+                 'ColumnFormat', colfmt,...
+                 'ColumnWidth', colwdt,...
+                 'ColumnEditable', coledit,...
+                 'ToolTipString',...
+                 'Select cells to highlight them on the plot',...
+                 'CellSelectionCallback',{@select_callback});
+
+
+% --- Executes when selected cell(s) is changed in uitable5.
+
+
+% --- Executes when entered data in editable cell(s) in uitable5.
 
 
 % --- Executes on button press in deteksi.
